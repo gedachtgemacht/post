@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gg-post"
+version = "0.1.0"
+description = "post. Local mail connector (MCP) for Claude, Codex and local models. Outlook, Thunderbird, IMAP."
+readme = "README.md"
+license = "AGPL-3.0-only"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "gedacht.gemacht." }]
+keywords = ["mcp", "email", "outlook", "imap", "claude", "codex", "connector"]
+classifiers = [
+  "Environment :: Win32 (MS Windows)",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: MacOS",
+  "Topic :: Communications :: Email",
+]
+dependencies = [
+  "mcp>=2.0,<3",
+  "imapclient>=3.0",
+  "keyring>=25",
+  "dnspython>=2.6",
+  "pypdf>=4.0",
+  "pywin32>=306; sys_platform == 'win32'",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pymap>=0.36; python_version >= '3.11'", "aiosmtpd>=1.4", "playwright>=1.40", "reportlab>=4", "python-docx>=1.1", "openpyxl>=3.1"]
+
+[project.scripts]
+post = "ggpost.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ggpost"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

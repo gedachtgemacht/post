@@ -1,0 +1,110 @@
+{
+  "manifest_version": "0.3",
+  "name": "post",
+  "display_name": "post. Mail",
+  "version": "0.1.0",
+  "description": "Local mail connector: Claude reads, searches and drafts mail through classic Outlook (Windows) or over IMAP.",
+  "long_description": "post. connects Claude to your own mailbox. post. itself runs on this computer only; whatever Claude reads from your mail goes to Anthropic like any other chat content. Replies land as drafts in your mailbox. You check them and send them yourself.",
+  "author": {
+    "name": "gedacht.gemacht."
+  },
+  "icon": "icon.png",
+  "server": {
+    "type": "binary",
+    "entry_point": "server/post.exe",
+    "mcp_config": {
+      "command": "${__dirname}/server/post.exe",
+      "args": [
+        "serve"
+      ],
+      "env": {
+        "POST_EMAIL": "${user_config.email}",
+        "POST_PASSWORD": "${user_config.password}",
+        "POST_ALLOW_MODIFY": "${user_config.allow_organize}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "mail_accounts",
+      "description": "Shows the connected mailboxes and what the AI may do."
+    },
+    {
+      "name": "mail_folders",
+      "description": "Lists folders with total and unread counts."
+    },
+    {
+      "name": "mail_search",
+      "description": "Lists or searches mail, newest first, across accounts and folders."
+    },
+    {
+      "name": "mail_read",
+      "description": "Reads one mail in full, optionally with the whole thread."
+    },
+    {
+      "name": "mail_attachment",
+      "description": "Reads the text of an attachment (PDF, Word, Excel, text)."
+    },
+    {
+      "name": "mail_draft",
+      "description": "Creates a draft, a reply or a forward, optionally straight in an Outlook window."
+    },
+    {
+      "name": "mail_discard_draft",
+      "description": "Deletes a draft the AI created."
+    },
+    {
+      "name": "mail_move",
+      "description": "Moves a mail to another folder."
+    },
+    {
+      "name": "mail_delete",
+      "description": "Deletes a mail: to the trash, or for good when explicitly asked."
+    },
+    {
+      "name": "mail_mark",
+      "description": "Marks a mail as read, unread or for follow-up."
+    },
+    {
+      "name": "post_setup",
+      "description": "Opens setup in the browser."
+    }
+  ],
+  "tools_generated": true,
+  "keywords": [
+    "mail",
+    "email",
+    "outlook",
+    "imap",
+    "entwurf",
+    "postfach"
+  ],
+  "license": "AGPL-3.0-only",
+  "compatibility": {
+    "platforms": [
+      "win32"
+    ]
+  },
+  "user_config": {
+    "email": {
+      "type": "string",
+      "title": "Mail address",
+      "description": "Your address; post. looks up the server settings itself.",
+      "required": false
+    },
+    "password": {
+      "type": "string",
+      "title": "Password or app password",
+      "description": "Gmail, iCloud and Yahoo require an app password.",
+      "sensitive": true,
+      "required": false
+    },
+    "allow_organize": {
+      "type": "boolean",
+      "title": "Allow sorting and deleting",
+      "description": "The AI may move mail into folders, delete it to the trash, mark it as spam and mark it as read or important. Reading and drafting always work.",
+      "default": false,
+      "required": false
+    }
+  }
+}

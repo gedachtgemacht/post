@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Set up post.</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+</head>
+<body>
+<main class="wrap">
+  <h1 class="sr">Set up post.</h1>
+  <p id="announce" class="sr" aria-live="polite"></p>
+  <header class="masthead">
+    <div class="route" id="route" role="group" aria-label="Connection status">
+      <div class="stop" id="stop-mail">
+        <span class="stop-dot" aria-hidden="true"></span>
+        <span class="stop-name">Mailbox</span>
+        <span class="stop-detail" id="route-mail">not chosen yet</span>
+      </div>
+      <div class="leg" id="leg-left" aria-hidden="true"></div>
+      <div class="stop-center">
+        <span class="wordmark">post<span class="dot">.</span></span>
+      </div>
+      <div class="leg" id="leg-right" aria-hidden="true"></div>
+      <div class="stop" id="stop-ai">
+        <span class="stop-dot" aria-hidden="true"></span>
+        <span class="stop-name">AI app</span>
+        <span class="stop-detail" id="route-ai">not chosen yet</span>
+      </div>
+    </div>
+    <p class="lede" id="lede">Connects your mailbox to your AI. post. itself runs on this computer only.</p>
+  </header>
+
+  <ol class="steps" id="steps">
+    <li class="step" data-step="1" id="step-1">
+      <div class="step-head">
+        <span class="step-no" aria-hidden="true">1</span>
+        <h2 tabindex="-1">Which mailboxes should your AI see?</h2>
+        <span class="step-summary" id="sum-1"></span>
+        <button class="link" type="button" data-edit="1" aria-label="Change mailboxes" hidden>change</button>
+      </div>
+      <div class="step-body">
+        <div id="scan" class="scan" role="status">Looking for mail programs on this computer ...</div>
+        <div id="sources"></div>
+        <section class="add" aria-labelledby="add-title">
+          <h3 id="add-title">Add a mailbox by address</h3>
+          <p class="help">For mailboxes at Gmail, iCloud, GMX, WEB.DE, T-Online and other providers. Outlook.com and Microsoft 365 only work through classic Outlook.</p>
+          <form id="add-form" class="inline-form" autocomplete="off">
+            <label class="sr" for="add-email">Mail address</label>
+            <input id="add-email" type="email" inputmode="email" placeholder="name@company.com" required>
+            <button class="btn" type="submit">Find settings</button>
+          </form>
+          <div id="add-status" class="status" role="status" aria-live="polite"></div>
+        </section>
+        <div class="step-actions">
+          <button class="btn primary" type="button" id="next-1">Check and continue</button>
+          <span class="status" id="status-1" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+    </li>
+
+    <li class="step" data-step="2" id="step-2">
+      <div class="step-head">
+        <span class="step-no" aria-hidden="true">2</span>
+        <h2 tabindex="-1">What is your AI allowed to do?</h2>
+        <span class="step-summary" id="sum-2"></span>
+        <button class="link" type="button" data-edit="2" aria-label="Change permissions" hidden>change</button>
+      </div>
+      <div class="step-body">
+        <ul class="perms">
+          <li class="perm">
+            <span class="tag">always on</span>
+            <div><strong>Read and search</strong><p>Mail, threads and attachment names. Nothing is marked as read.</p></div>
+          </li>
+          <li class="perm">
+            <span class="tag">always on</span>
+            <div><strong>Create drafts</strong><p>Replies land in your drafts folder or open as a window in Outlook. You check them and send them yourself.</p></div>
+          </li>
+          <li class="perm">
+            <label class="switch-label">
+              <input type="checkbox" id="perm-modify">
+              <span class="switch" aria-hidden="true"></span>
+              <div><strong>Sort, delete and mark</strong><p>Move mail into folders, delete it to the trash, mark it as spam, and mark it as read or for follow-up.</p></div>
+            </label>
+          </li>
+          <li class="perm danger">
+            <label class="switch-label">
+              <input type="checkbox" id="perm-send">
+              <span class="switch" aria-hidden="true"></span>
+              <div><strong>Send on its own</strong><p>The AI may send drafts. It is instructed to show you recipients and text and to ask first; post. cannot enforce that. Only switch this on if you really want it.</p></div>
+            </label>
+          </li>
+        </ul>
+        <div class="step-actions">
+          <button class="btn primary" type="button" id="next-2">Save and continue</button>
+          <span class="status" id="status-2" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+    </li>
+
+    <li class="step" data-step="3" id="step-3">
+      <div class="step-head">
+        <span class="step-no" aria-hidden="true">3</span>
+        <h2 tabindex="-1">Where do you want to use post.?</h2>
+        <span class="step-summary" id="sum-3"></span>
+        <button class="link" type="button" data-edit="3" aria-label="Change AI apps" hidden>change</button>
+      </div>
+      <div class="step-body">
+        <ul class="rows" id="apps"></ul>
+        <p class="help">post. registers itself there and makes a backup of each settings file first.</p>
+        <div class="step-actions">
+          <button class="btn primary" type="button" id="next-3">Continue</button>
+          <button class="btn ghost" type="button" id="skip-3">Skip</button>
+          <span class="status" id="status-3" role="status" aria-live="polite"></span>
+        </div>
+      </div>
+    </li>
+
+    <li class="step" data-step="4" id="step-4">
+      <div class="step-head">
+        <span class="step-no" aria-hidden="true">4</span>
+        <h2 tabindex="-1">Done</h2>
+      </div>
+      <div class="step-body">
+        <p id="done-text">Restart your AI app completely. Then you can ask it, for example:</p>
+        <ul class="prompts" id="prompts"></ul>
+        <div class="step-actions">
+          <button class="btn primary" type="button" id="finish">Finish setup</button>
+        </div>
+        <p class="help" id="undo">To remove it again: run <code>post uninstall</code> in a terminal, with <code>--all</code> to delete the settings and passwords too.</p>
+      </div>
+    </li>
+  </ol>
+  <footer class="foot">
+    <span>post. <span id="version"></span></span>
+    <span>gedacht.gemacht.</span>
+    <span>AGPL-3.0</span>
+  </footer>
+</main>
+<template id="tpl-imap">
+  <li class="row imap-row">
+    <label class="check">
+      <input type="checkbox" class="pick">
+      <span class="box" aria-hidden="true"></span>
+      <span class="addr"></span>
+    </label>
+    <span class="tag"></span>
+    <div class="row-detail">
+      <p class="hint" hidden></p>
+      <div class="pw-line">
+        <label class="sr pw-label">Password</label>
+        <input type="password" class="pw" placeholder="Password" autocomplete="off">
+        <button type="button" class="btn small test">Test</button>
+      </div>
+      <p class="row-status status"></p>
+      <details class="sig">
+        <summary>Signature for drafts</summary>
+        <label class="sr sig-label">Signature</label>
+        <textarea class="sig-text" rows="3" placeholder="Kind regards&#10;First Last"></textarea>
+      </details>
+      <details class="manual">
+        <summary>Server settings</summary>
+        <p class="server"></p>
+        <div class="manual-grid">
+          <label>IMAP server<input class="m-host" spellcheck="false"></label>
+          <label>Port<input class="m-port" inputmode="numeric"></label>
+          <label>Encryption
+            <select class="m-sec"><option value="ssl">SSL/TLS</option><option value="starttls">STARTTLS</option><option value="plain">none</option></select>
+          </label>
+          <label>User name<input class="m-user" spellcheck="false"></label>
+          <label>SMTP server<input class="m-shost" spellcheck="false"></label>
+          <label>SMTP port<input class="m-sport" inputmode="numeric"></label>
+        </div>
+      </details>
+      <button type="button" class="link inline remove" hidden>Remove</button>
+    </div>
+  </li>
+</template>
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.10", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q
+
+  windows-build:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python -m pip install -e ".[dev]" pyinstaller
+      - run: npm install -g @anthropic-ai/mcpb
+      - run: pyinstaller packaging/pyinstaller/post.spec --noconfirm --distpath dist --workpath build/pyi
+      - name: Smoke test
+        shell: pwsh
+        run: |
+          ./dist/post.exe --version
+          $env:POST_BINARY = (Resolve-Path ./dist/post.exe).Path
+          python -m pytest -q tests/test_stdio_smoke.py tests/test_stdio.py
+      - run: python scripts/build_mcpb.py windows
+      - uses: actions/upload-artifact@v4
+        with:
+          name: post-windows
+          path: |
+            dist/post.exe
+            dist/*.mcpb
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows-build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm install -g @anthropic-ai/mcpb && python scripts/build_mcpb.py uv
+      - uses: actions/download-artifact@v4
+        with:
+          name: post-windows
+          path: dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/post.exe
+            dist/*.mcpb
