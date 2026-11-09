@@ -433,6 +433,8 @@ class ImapBackend(MailBackend):
 
     def _select_ref(self, c: IMAPClient, ref: dict[str, Any], readonly: bool = True) -> int:
         folder = ref.get("f", "INBOX")
+        if not readonly:
+            _drop_selection(c)
         try:
             sel = c.select_folder(folder, readonly=readonly)
         except IMAPClientError as exc:
@@ -764,6 +766,7 @@ class ImapBackend(MailBackend):
                 self._expunge(c, [self._select_ref(c, moved, readonly=False)])
                 return
             target = self._resolve(c, "trash")
+            _drop_selection(c)
             c.select_folder(target, readonly=False)
             hits = c.search(["HEADER", "Message-ID", message_id]) if message_id else []
             if not hits:
@@ -888,6 +891,21 @@ class ImapBackend(MailBackend):
             raise BackendError(f"Login at the outgoing server {s.host} failed.") from exc
         except (smtplib.SMTPException, OSError) as exc:
             raise BackendError(f"Sending through {s.host} failed ({exc}).") from exc
+
+
+def _drop_selection(c: IMAPClient) -> None:
+    """Gives up the selected mailbox before we select it for writing.
+
+    Some servers keep an existing read-only session when the same mailbox is
+    selected a second time and then refuse MOVE or STORE with
+    "[READ-ONLY] Mailbox is read-only". UNSELECT forces a fresh session and,
+    unlike CLOSE, does not expunge anything on the way out. Servers without
+    UNSELECT simply keep their selection; for them the plain SELECT is enough.
+    """
+    try:
+        c.unselect_folder()
+    except Exception:  # noqa: BLE001 - capability missing or nothing selected
+        pass
 
 
 def _smtp_login(server: smtplib.SMTP, user: str, password: str) -> None:

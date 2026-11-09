@@ -312,3 +312,62 @@ def test_delete_moves_to_trash_and_permanent_erases(imap_source, imap_server):
     b.delete(decode_id(find("Erase me for good").id), permanent=True)
     everywhere = b.search(imap_source.email, SearchQuery(folder="all", limit=400))
     assert not any(m.subject == "Erase me for good" for m in everywhere)
+
+
+def test_move_through_the_backend_by_role_and_by_name(imap_source, imap_server):
+    """Drives ImapBackend.move() itself, not a raw client: this is the path the
+    mail_move tool takes, and it is where the READ-ONLY bug used to sit."""
+    from email.message import EmailMessage
+
+    c = raw_client(imap_server)
+    names = [name for _f, _d, name in c.list_folders()]
+    if "Archiv" not in names:
+        c.create_folder("Archiv")
+    for subject in ("Move me by role", "Move me by name"):
+        m = EmailMessage()
+        m["From"] = "absender@example.org"
+        m["To"] = imap_source.email
+        m["Subject"] = subject
+        m.set_content("nothing to see here")
+        c.append("INBOX", m.as_bytes())
+    c.logout()
+
+    b = make(imap_source)
+
+    def find(subject, folder="inbox"):
+        hits = [m for m in b.search(imap_source.email, SearchQuery(folder=folder, limit=200))
+                if m.subject == subject]
+        assert hits, f"no mail with subject {subject!r} in {folder}"
+        return hits[0]
+
+    # A role name, the way the AI is told to use it
+    new_id = b.move(decode_id(find("Move me by role").id), "archive")
+    assert new_id, "move should report the new message id"
+    moved = b.read(decode_id(new_id))
+    assert moved.summary.subject == "Move me by role"
+    assert not any(m.subject == "Move me by role"
+                   for m in b.search(imap_source.email, SearchQuery(folder="inbox", limit=200)))
+
+    # And a plain folder name
+    b.move(decode_id(find("Move me by name").id), "Archiv")
+    assert find("Move me by name", folder="Archiv")
+
+
+def test_move_into_the_same_folder_is_a_no_op(imap_source, imap_server):
+    from email.message import EmailMessage
+
+    c = raw_client(imap_server)
+    m = EmailMessage()
+    m["From"] = "absender@example.org"
+    m["To"] = imap_source.email
+    m["Subject"] = "Stay where you are"
+    m.set_content("nothing to see here")
+    c.append("INBOX", m.as_bytes())
+    c.logout()
+
+    b = make(imap_source)
+    hit = [m for m in b.search(imap_source.email, SearchQuery(limit=200))
+           if m.subject == "Stay where you are"][0]
+    ref = decode_id(hit.id)
+    same = decode_id(b.move(ref, "inbox"))
+    assert same["u"] == ref["u"] and same["f"] == ref["f"]
