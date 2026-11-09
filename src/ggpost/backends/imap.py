@@ -38,7 +38,7 @@ from ggpost.backends.base import (
 )
 from ggpost.backends.base import ROLE_ALIASES, ROLE_NAMES, fmt_date, is_all_folders
 from ggpost.config import ServerSettings, Source
-from ggpost.ids import encode_id
+from ggpost.ids import decode_id, encode_id
 from ggpost.text import (
     decode_mime_words,
     html_to_text,
@@ -689,19 +689,24 @@ class ImapBackend(MailBackend):
     def move(self, ref: dict[str, Any], folder: str) -> str:
         def op(c: IMAPClient) -> str:
             target = self._resolve(c, folder)
-            uid = self._select_ref(c, ref, readonly=False)
             if target == ref["f"]:
                 return encode_id(ref)
+            # Ask about the capabilities before we select the folder for writing:
+            # a CAPABILITY in between can put the mailbox back into read-only,
+            # and the server then refuses the MOVE.
+            can_move = c.has_capability("MOVE")
+            can_uidplus = c.has_capability("UIDPLUS")
+            uid = self._select_ref(c, ref, readonly=False)
             head = c.fetch([uid], [b"BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)]"]).get(uid, {})
             raw_head = next((v for k, v in head.items() if k.startswith(b"BODY[")), b"") or b""
             message_id = str(BytesParser(policy=policy.default).parsebytes(raw_head, headersonly=True).get("Message-ID", "") or "").strip()
             c._imap.untagged_responses.pop("COPYUID", None)  # noqa: SLF001
-            if c.has_capability("MOVE"):
+            if can_move:
                 resp = c.move([uid], target)
             else:
                 resp = c.copy([uid], target)
                 c.add_flags([uid], [DELETED])
-                if c.has_capability("UIDPLUS"):
+                if can_uidplus:
                     c.uid_expunge([uid])
                 else:
                     c.expunge()
@@ -748,15 +753,22 @@ class ImapBackend(MailBackend):
             return ""
 
         message_id = self._run(message_id_of)
-        self.move(ref, "trash")
+        moved_id = self.move(ref, "trash")
+        moved = decode_id(moved_id) if moved_id else None
 
         def purge_in_trash(c: IMAPClient) -> None:
+            # The UID that move() reported is the reliable handle. Only when the
+            # server gave us none do we fall back to the Message-ID, and a mail
+            # without that header leaves us nothing to match on.
+            if moved and moved.get("u"):
+                self._expunge(c, [self._select_ref(c, moved, readonly=False)])
+                return
             target = self._resolve(c, "trash")
             c.select_folder(target, readonly=False)
             hits = c.search(["HEADER", "Message-ID", message_id]) if message_id else []
             if not hits:
                 raise BackendError(
-                    "The mail is in the trash, but could not be erased there. "
+                    "The mail was moved to the trash, but could not be erased there. "
                     "Emptying the trash in your mail program will remove it."
                 )
             self._expunge(c, list(hits))
@@ -765,8 +777,9 @@ class ImapBackend(MailBackend):
         return ""
 
     def _expunge(self, c: IMAPClient, uids: list[int]) -> None:
+        can_uidplus = c.has_capability("UIDPLUS")
         c.add_flags(uids, [DELETED])
-        if c.has_capability("UIDPLUS"):
+        if can_uidplus:
             c.uid_expunge(uids)
         else:
             c.expunge()

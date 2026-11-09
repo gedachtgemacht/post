@@ -22,7 +22,7 @@ def raw_client(port):
 
 
 def test_login_and_check(imap_source):
-    assert "Posteingang" in verify_login(imap_source.imap, imap_source.email, "demopass")
+    assert "Inbox" in verify_login(imap_source.imap, imap_source.email, "demopass")
 
 
 def test_wrong_password(imap_source):
@@ -150,7 +150,7 @@ def test_reconnect_after_drop(imap_source):
     b = make(imap_source)
     b.check()
     b._client.shutdown()  # cut the connection hard
-    assert "Posteingang" in b.check()
+    assert "Inbox" in b.check()
 
 
 def _append_with_attachment(port, subject, filename, data, maintype, subtype):
@@ -208,7 +208,7 @@ def test_signature_prefix_and_discard(imap_source):
     assert msg.body.endswith("Viele Grüße\nDemo GmbH")
     reply = b.create_draft(src.email, DraftRequest(account=None, to=[], cc=[], bcc=[], subject=None, body="Antwort", reply_to_id=first.id))
     assert reply.subject == "AW: Frage"
-    assert "NICHT gesendet" in reply.note
+    assert "NOT sent" in reply.note
     b.discard_draft(decode_id(first.id))
     with pytest.raises(NotFound):
         b.read(decode_id(first.id))
@@ -221,7 +221,7 @@ def test_utf8_password_login(imap_server_umlaut):
     from ggpost.config import ServerSettings, Source
 
     src = Source(kind="imap", email="demouser@example.org", imap=ServerSettings("127.0.0.1", imap_server_umlaut, "plain", "demouser"))
-    assert "Posteingang" in ImapBackend(src, lambda _e: "Grüße€2026", timeout=10).check()
+    assert "Inbox" in ImapBackend(src, lambda _e: "Grüße€2026", timeout=10).check()
     with pytest.raises(BackendError, match="Login"):
         ImapBackend(src, lambda _e: "Grüße€falsch", timeout=10).check()
 
@@ -279,16 +279,36 @@ def test_send_draft_via_smtp(imap_server, imap_source, smtp_server):
     assert sent and sent[0].subject == "Angebot"
 
 
-def test_delete_moves_to_trash_and_permanent_erases(imap_source):
-    b = ImapBackend(imap_source, lambda e: "demopass")
-    hit = b.search(imap_source.email, SearchQuery())[0]
-    ref = decode_id(hit.id)
-    b.delete(ref)
-    trash = b.search(imap_source.email, SearchQuery(folder="trash"))
-    assert any(m.subject == hit.subject for m in trash)
+def test_delete_moves_to_trash_and_permanent_erases(imap_source, imap_server):
+    """Brings its own mail along: the IMAP server is shared by the whole session,
+    so deleting someone else's test data would break tests further down."""
+    from email.message import EmailMessage
 
-    second = b.search(imap_source.email, SearchQuery())[0]
-    subject = second.subject
-    b.delete(decode_id(second.id), permanent=True)
-    # Neither where it was nor in the trash: really gone
-    assert not any(m.subject == subject for m in b.search(imap_source.email, SearchQuery(folder="all")))
+    c = IMAPClient("127.0.0.1", port=imap_server, ssl=False)
+    c.login("demouser", "demopass")
+    names = [name for _f, _d, name in c.list_folders()]
+    if not any(n.lower() in ("trash", "papierkorb", "deleted items") for n in names):
+        c.create_folder("Trash")
+    for subject in ("Throw me in the bin", "Erase me for good"):
+        m = EmailMessage()
+        m["From"] = "absender@example.org"
+        m["To"] = imap_source.email
+        m["Subject"] = subject
+        m.set_content("nothing to see here")
+        c.append("INBOX", m.as_bytes())
+    c.logout()
+
+    b = ImapBackend(imap_source, lambda e: "demopass")
+
+    def find(subject, folder="inbox"):
+        hits = [m for m in b.search(imap_source.email, SearchQuery(folder=folder, limit=200))
+                if m.subject == subject]
+        assert hits, f"no mail with subject {subject!r} in {folder}"
+        return hits[0]
+
+    b.delete(decode_id(find("Throw me in the bin").id))
+    assert find("Throw me in the bin", folder="trash")  # recoverable, not gone
+
+    b.delete(decode_id(find("Erase me for good").id), permanent=True)
+    everywhere = b.search(imap_source.email, SearchQuery(folder="all", limit=400))
+    assert not any(m.subject == "Erase me for good" for m in everywhere)
